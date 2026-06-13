@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cinema Collection</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f0f0f;
+    --surface:#1a1a1a;
+    --surface2:#242424;
+    --border:#333;
+    --text:#f0f0f0;
+    --muted:#999;
+    --accent:#e8b86d;
+    --accent-dim:#3a2e1a;
+    --green:#4caf72;
+    --green-dim:#1a2e20;
+    --radius:10px;
+  }
+  body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;min-height:100vh;padding:0}
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:1.2rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+  header h1{font-size:1.3rem;font-weight:500;letter-spacing:0.02em;color:var(--accent)}
+  header span{font-size:0.85rem;color:var(--muted)}
+  .controls{padding:1.2rem 2rem;display:flex;gap:10px;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:64px;z-index:9}
+  input,select{height:44px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:0 14px;font-size:0.95rem;outline:none;transition:border-color 0.2s}
+  input{flex:1;min-width:220px}
+  select{min-width:150px;cursor:pointer}
+  input:focus,select:focus{border-color:var(--accent)}
+  .lucky{height:44px;padding:0 18px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:var(--radius);font-size:0.9rem;cursor:pointer;white-space:nowrap;transition:background 0.2s}
+  .lucky:hover{background:#4a3a22}
+  .stats{padding:0.8rem 2rem;font-size:0.85rem;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:0 2rem 2rem}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;cursor:pointer;transition:border-color 0.15s,background 0.15s}
+  .card:hover,.card:focus{border-color:var(--accent);background:var(--surface2);outline:none}
+  .card-title{font-size:0.95rem;font-weight:500;margin-bottom:5px;line-height:1.4;color:var(--text)}
+  .card-dir{font-size:0.8rem;color:var(--muted);margin-bottom:10px}
+  .tags{display:flex;gap:5px;flex-wrap:wrap}
+  .tag{font-size:0.72rem;padding:3px 8px;border-radius:20px;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+  .tag.sub{background:var(--green-dim);color:var(--green);border-color:#2a5a38}
+  .tag.year{color:var(--accent);background:var(--accent-dim);border-color:#4a3a22}
+  .empty{text-align:center;padding:4rem 2rem;color:var(--muted);font-size:0.95rem}
+  .empty svg{display:block;margin:0 auto 1rem;opacity:0.3}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:none;align-items:center;justify-content:center;z-index:100;padding:1rem}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:2rem;max-width:480px;width:100%;position:relative}
+  .modal-close{position:absolute;top:14px;right:14px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;line-height:1}
+  .modal-close:hover{color:var(--text)}
+  .modal h2{font-size:1.3rem;font-weight:500;margin-bottom:6px;padding-right:2rem;line-height:1.3}
+  .modal-meta{font-size:0.85rem;color:var(--muted);margin-bottom:1.5rem}
+  .modal-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem}
+  .info-block{background:var(--surface2);border-radius:8px;padding:12px}
+  .info-block label{font-size:0.72rem;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em}
+  .info-block span{font-size:0.9rem;color:var(--text)}
+  .watch-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;background:var(--accent);color:#1a1000;border:none;border-radius:var(--radius);font-size:1rem;font-weight:500;cursor:pointer;text-decoration:none;transition:opacity 0.2s}
+  .watch-btn:hover{opacity:0.9}
+
+  /* TV-friendly big text mode */
+  @media(min-width:1400px){
+    .card-title{font-size:1rem}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+    input,select{height:50px;font-size:1rem}
+    .lucky{height:50px}
+  }
+  @media(max-width:600px){
+    .controls{padding:1rem}
+    .grid{padding:0 1rem 1rem;grid-template-columns:1fr 1fr}
+    header{padding:1rem}
+    .stats{padding:0.8rem 1rem}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&#127916; Cinema Collection</h1>
+  <span id="total-count"></span>
+</header>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Search title or director…" autocomplete="off" />
+  <select id="country-filter"><option value="">All countries</option></select>
+  <select id="decade-filter"><option value="">All decades</option></select>
+  <select id="sub-filter">
+    <option value="">Any subtitles</option>
+    <option value="yes">With subtitles</option>
+    <option value="no">No subtitles</option>
+  </select>
+  <button class="lucky" id="lucky">&#127922; I'm feeling lucky</button>
+</div>
+
+<div class="stats" id="stats"></div>
+<div class="grid" id="grid"></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" id="close-modal" aria-label="Close">&#x2715;</button>
+    <h2 id="m-title"></h2>
+    <div class="modal-meta" id="m-meta"></div>
+    <div class="modal-info">
+      <div class="info-block"><label>Country</label><span id="m-country"></span></div>
+      <div class="info-block"><label>Year</label><span id="m-year"></span></div>
+      <div class="info-block"><label>Director</label><span id="m-dir"></span></div>
+      <div class="info-block"><label>Subtitles</label><span id="m-subs"></span></div>
+    </div>
+    <a id="m-link" class="watch-btn" target="_blank" rel="noopener">
+      &#9654;&#xFE0E; Watch on Google Drive
+    </a>
+  </div>
+</div>
+
+<script>
+const MOVIES = [
+  ["Short Cuts","1993","America","Robert Altman","yes","https://drive.google.com/open?id=1qal0SqE_vgiVJV9JRqlc0Fpk7F_KGBb_zg"],
+  ["Peppermint Candy","1999","Korea","Lee Chang-dong","yes","https://drive.google.com/open?id=1xcswzuQ8DaFq-Ei_sIOofxWkANRkEVGlzQ"],
+  ["Fury","1936","America","Fritz Lang","yes","https://drive.google.com/open?id=1QS3H8V-ut_TS5UZXAxAslNA60jjb1ME9aA"],
+  ["Union Pacific","1939","America","Cecil B. DeMille","no","https://drive.google.com/open?id=1tq9pT2fVMq4uwo68h9y3SeV2KRIIUwOC7g"],
+  ["The Shop Around the Corner","1940","America","Ernst Lubitsch","yes","https://drive.google.com/open?id=1yGTeHxQnVrUNLOGOHpVbh14vC4fwT8zRtA"],
+  ["The Maltese Falcon","1941","America","John Huston","yes","https://drive.google.com/open?id=1DMCtCqOvi8EPXun7fx_qy25WmL3hq6VGTg"],
+  ["The Magnificent Ambersons","1942","America","Orson Welles","yes","https://drive.google.com/open?id=1f7MiFqrHCtv9dxluf8FF9vKlovzkTfANVw"],
+  ["To Be or Not to Be","1942","America","Ernst Lubitsch","yes","https://drive.google.com/open?id=12MQMdLu9q_64oxiUTtGhd-8QK0myihqvyA"],
+  ["Double Indemnity","1944","America","Billy Wilder","yes","https://drive.google.com/open?id=1IvkgJJREVUgvCliUjKHBDhHzA9In18dXqQ"],
+  ["The Lost Weekend","1945","America","Billy Wilder","yes","https://drive.google.com/open?id=1wd25PgTZFWCcBT6C2QRULyq5lM0l4Pl_4g"],
+  ["My Darling Clementine","1946","America","John Ford","yes","https://drive.google.com/open?id=1ZTmMq8Dnm_2r39QUkLUVVEIonDCqhxf-yw"],
+  ["Key Largo","1948","America","John Huston","yes","https://drive.google.com/open?id=1C17qF3sbiAbU1RW4xnqzxWqM7g24TKY3gw"],
+  ["Red River","1948","America","Howard Hawks","yes","https://drive.google.com/open?id=1eHnqwJpym3Qyvi4Qx6XNN5JEbrGn_L8HxQ"],
+  ["The Treasure of the Sierra Madre","1948","America","John Huston","yes","https://drive.google.com/open?id=1gWllVHit6xZYiQ17hzrO0KVjZXM1-cD7ww"],
+  ["Sunset Blvd","1950","America","Billy Wilder","yes","https://drive.google.com/open?id=1oOJUCUarjWyBbe3o5K0hFJVm0Mk-k6k3Ng"],
+  ["In a Lonely Place","1950","America","Nicholas Ray","yes","https://drive.google.com/open?id=1PPhOiz_CniQ3sdQofc3pWR3dWU-whxAldg"],
+  ["The Asphalt Jungle","1950","America","John Huston","yes","https://drive.google.com/open?id=14zzwxmlvq8QysAMzTAXRlHXJzDfRRdnH7w"],
+  ["12 Angry Men","1957","America","Sidney Lumet","yes","https://drive.google.com/open?id=1k5NKBv8FsMGJ0TXOBNaECX5cI02aqCrdlQ"],
+  ["On the Waterfront","1954","America","Elia Kazan","yes","https://drive.google.com/open?id=11VlJiL5Ykq0wKN-UG1wcTXhjTWBHG1R6tQ"],
+  ["East of Eden","1955","America","Elia Kazan","yes","https://drive.google.com/open?id=1PEo6VxS5DHd2rigF0I7KKTfXvnEtEy-Naw"],
+  ["Taxi Driver","1976","America","Martin Scorsese","yes","https://drive.google.com/open?id=164gEKjEqqpQhmo5KpWVk4Bsx8MSQ6U0TGA"],
+  ["Apocalypse Now","1979","America","Francis Ford Coppola","yes","https://drive.google.com/open?id=1zcnOJhlYQL60XSeB0pNfdmbS82QddKUJHg"],
+  ["Manhattan","1979","America","Woody Allen","yes","https://drive.google.com/open?id=1Js2vaoqk3nff8tJrjcRvssWI4kDaqk8dMA"],
+  ["Eraserhead","1977","America","David Lynch","yes","https://drive.google.com/open?id=1KnPLQiLRaa5ZL17lcYLovBIh3CMp73s72A"],
+  ["Blue Velvet","1986","America","David Lynch","yes","https://drive.google.com/open?id=1RfvFhQ93oReYqPIe_8cfDXsWW2zLJaV14g"],
+  ["Mulholland Drive","2001","America","David Lynch","yes","https://drive.google.com/open?id=1RvBfbJ1d_pg0AjHhdXh_6UHYdcyOwFE1_A"],
+  ["The Conversation","1974","America","Francis Ford Coppola","yes","https://drive.google.com/open?id=1m8lcwrgbQtdx56dLgLmnCTThCbVoafqyIA"],
+  ["All That Jazz","1979","America","Bob Fosse","yes","https://drive.google.com/open?id=1kYtjkSSQiK5bpdzpYTxEj3vi2EEvk-z2oA"],
+  ["Barton Fink","1991","America","Coen Brothers","yes","https://drive.google.com/open?id=1pPj37fAY7iy_gXpdHTSF2MYgj-Tbpu8I6Q"],
+  ["Pulp Fiction","1994","America","Quentin Tarantino","yes","https://drive.google.com/open?id=1z8djiHBDYe8DbopQseXK-Kc9gqh_ht5yMA"],
+  ["Before Sunrise","1995","America","Richard Linklater","yes","https://drive.google.com/open?id=1B9V6woEl0rzh5zrVBMKIJeOW8MnLUrPa3Q"],
+  ["Before Sunset","2004","America","Richard Linklater","yes","https://drive.google.com/open?id=1XcDsXMM3KGR2UwFajCzZiLZQQKtiOZ9gmA"],
+  ["Before Midnight","2013","America","Richard Linklater","yes","https://drive.google.com/open?id=16pp4B4kNhr2W-O8zynXOLF4UShQjVUXjUw"],
+  ["Magnolia","1999","America","Paul Thomas Anderson","yes","https://drive.google.com/open?id=12ebXNkJoihZ-6qkmFFhwnMXJ7z8yQMd8vw"],
+  ["Nashville","1975","America","Robert Altman","yes","https://drive.google.com/open?id=1w-3TZoq2jNQ5CC9xGtmSY9IPRRh06PZndA"],
+  ["McCabe & Mrs. Miller","1971","America","Robert Altman","yes","https://drive.google.com/open?id=10VIWrK31ft4ibpdWNn9K8YFHOTJeGAF-5w"],
+  ["MASH","1970","America","Robert Altman","yes","https://drive.google.com/open?id=1Yj91EqYLoW-RvXJfV2kYPSwacTmm6E4gcQ"],
+  ["Crimes and Misdemeanors","1989","America","Woody Allen","yes","https://drive.google.com/open?id=1qAlYNZunzMsvjr1ePmaV_NSkUAp2bA-X9w"],
+  ["Rain Man","1988","America","Barry Levinson","yes","https://drive.google.com/open?id=1cpwdU7cABaMR6ttMJMibq_FGiHxH5Lcl3g"],
+  ["The Thin Red Line","1988","America","Terrence Malick","yes","https://drive.google.com/open?id=1WKJupoEMMa2AcjRAsb2vdwtfEGiKFe-XwQ"],
+  ["Days of Heaven","1978","America","Terrence Malick","yes","https://drive.google.com/open?id=1T5KPolM4MTYiL97wboei2-E7NfJCZNKeoA"],
+  ["The Tree of Life","2011","America","Terrence Malick","yes","https://drive.google.com/open?id=18grJWNXNTiipJUDq8_TFkBWHsUYaHPo5kA"],
+  ["Stranger Than Paradise","1984","America","Jim Jarmusch","yes","https://drive.google.com/open?id=1hHd65cIWoEUfJfriU9d8qD2bM7cp2z1IQg"],
+  ["Down By Law","1986","America","Jim Jarmusch","yes","https://drive.google.com/open?id=1jIwT7GCgqZoquSpcagE9MPNsZuHdyHyK5w"],
+  ["Mystery Train","1989","America","Jim Jarmusch","yes","https://drive.google.com/open?id=1bv_jPFk1r1P69HLyaBengLQhs8ujmvu6oA"],
+  ["Night on Earth","1991","America","Jim Jarmusch","yes","https://drive.google.com/open?id=1LFatby4PGtKg6vngD9MVg0Vw5D5iVSAeww"],
+  ["Broken Flowers","2005","America","Jim Jarmusch","yes","https://drive.google.com/open?id=1Ugqz5E3l254wu38g-IEffbJSJ5k4QYNFAQ"],
+  ["Sex Lies and Videotape","1989","America","Steven Soderbergh","yes","https://drive.google.com/open?id=1ac3TC1elY5p2WoI44N8oVh336vOotcMJCQ"],
+  ["The Wrestler","2008","America","Darren Aronofsky","yes","https://drive.google.com/open?id=1iUBjNBUhyncLhtErgps_Ut4x4xz77UmqSg"],
+  ["Jeanne Dielman","1975","Belgium","Chantal Akerman","yes","https://drive.google.com/file/d/13rzerRbvva3Agp6E8-lkh4uYe54yqy45hQ/view"],
+  ["Je Tu Il Elle","1974","Belgium","Chantal Akerman","yes","https://drive.google.com/open?id=1nuQgxP1FQrFgAHfWM1wFFfGU07epWZ7ktg"],
+  ["News from Home","1977","Belgium","Chantal Akerman","yes","https://drive.google.com/open?id=1-i7gR7bozIuGEVgM-zuH-FttaMtJK82tog"],
+  ["La Promesse","1996","Belgium","Dardenne Brothers","yes","https://drive.google.com/file/d/1VQ4h7EKvTU8TiYp9lffzXr1H6GVvb5_PgQ/view"],
+  ["Rosetta","1999","Belgium","Dardenne Brothers","yes","https://drive.google.com/file/d/1JlLdwlLwJhoPeMhSBDvAojNt6XGIIaIkLA/view"],
+  ["The Son","2002","Belgium","Dardenne Brothers","yes","https://drive.google.com/file/d/1el35Et50e903NwfcQx6wHN6n6RpAJ2xWEg/view"],
+  ["The Child","2005","Belgium","Dardenne Brothers","yes","https://drive.google.com/file/d/1wVnuD1w1y92YBHdqP0yv82OMU0NZiNBfIg/view"],
+  ["Two Days One Night","2014","Belgium","Dardenne Brothers","yes","https://drive.google.com/file/d/1DLT5SOke7bcWFKqR1IVvVy8JMEKhWPy7hw/view"],
+  ["The Kid with a Bike","2011","Belgium","Dardenne Brothers","yes","https://drive.google.com/file/d/19rTP_aYW946dpYjYw8JqlFL9zE-zpE5cFg/view"],
+  ["The Seventh Continent","1989","Austria","Michael Haneke","yes","https://drive.google.com/open?id=1c5CjnfHlcB16mSFCH8K9f6n--WqZng5HHQ"],
+  ["The Piano Teacher","2001","Austria","Michael Haneke","yes","https://drive.google.com/open?id=12nCD7nSc93lAFwzjBhrRK8jvSOppApHcNw"],
+  ["The White Ribbon","2009","Austria","Michael Haneke","yes","https://drive.google.com/open?id=1jISDyhO0-4eblZz6FeQ7xkeG1c5otvZIRA"],
+  ["Amour","2012","Austria","Michael Haneke","yes","https://drive.google.com/open?id=1mCV5PWhVeXWoeg-sIZ8T7jynfTgl6x5SCA"],
+  ["The Counterfeiters","2007","Austria","Stefan Ruzowitzky","yes","https://drive.google.com/open?id=1naFBoh9dBzIFsLn6KhTKP1dQ5LgAmRKWlw"],
+  ["Central Station","1998","Brazil","Walter Salles","yes","https://drive.google.com/open?id=16lHi1NVF6g9KT7g66zWh0BUsX7qDOVksGA"],
+  ["Elite Squad","2007","Brazil","José Padilha","yes","https://drive.google.com/open?id=1ZvJNWKVHlMg6CCrxdhMAO2ZIlxUEdqpsCw"],
+  ["The Official Story","1985","Argentina","Luis Puenzo","yes","https://drive.google.com/open?id=1lVHBZH3lXaM3FcykSmfZG4UO_-4aleaFZQ"],
+  ["The Secret in Their Eyes","2009","Argentina","Juan José Campanella","yes","https://drive.google.com/open?id=1StbO37kg9YJf2wFCme3S3IvOixj-gBjWuA"],
+  ["The Clan","2015","Argentina","Pablo Trapero","yes","https://drive.google.com/open?id=1K9srVGmsbCZQw3MTZDMbbxT4-GQrK24Hvg"],
+  ["The Piano","1993","Australia","Jane Campion","yes","https://drive.google.com/open?id=1BqyPCgQ06SwcrNRGWrioCFlF8FAzO30sxg"],
+  ["Mary and Max","2009","Australia","Adam Elliot","yes","https://drive.google.com/open?id=17mf_XNo5BLo5cfyeKI6Dbc7-6HD3FkNYNQ"],
+  ["The Fly","1986","Canada","David Cronenberg","yes","https://drive.google.com/open?id=1DbkUb3FovklrkT8Qod-u-ikRnBsbOOeTAA"],
+  ["Videodrome","1983","Canada","David Cronenberg","yes","https://drive.google.com/open?id=1z8Qu-ijhgUJRbK54XaSNPrKu5GOUDJEe9w"],
+  ["A History of Violence","2005","Canada","David Cronenberg","yes","https://drive.google.com/open?id=1tIvly0q_Urk9s2xwJT1EebebOB9S6Tl1uQ"],
+  ["Dead Ringers","1988","Canada","David Cronenberg","yes","https://drive.google.com/open?id=14ggSvLPxoVa80PHdMutkNj5x6NvMjMofog"],
+  ["Exotica","1994","Canada","Atom Egoyan","yes","https://drive.google.com/file/d/1kZH1R7BymxhivVCzkgFixfrg7-yOPrSVMA/view"],
+  ["Days of Being Wild","1990","China","Wong Kar-wai","yes","https://drive.google.com/open?id=1dVSzSKGQoXM6KPD7ffnqPL5wVTcqdkH9iA"],
+  ["Chungking Express","1994","China","Wong Kar-wai","yes","https://drive.google.com/open?id=1mCkvQQr3s9OtY91lbFwsA0C5d2wFIUOBag"],
+  ["Fallen Angels","1995","China","Wong Kar-wai","yes","https://drive.google.com/open?id=1e0FlNLPA5pxlHSOZ438KMI5uRfMH-RvjFA"],
+  ["In the Mood for Love","2000","China","Wong Kar-wai","yes","https://drive.google.com/open?id=17cL6thaYXCRtOOV_37rN3JFe7zPYSypwWQ"],
+  ["Farewell My Concubine","1993","China","Chen Kaige","yes","https://drive.google.com/open?id=1grmCxuaMStL985w1GHpbB-822dekwbOgiw"],
+  ["The Story of Qiu Ju","1992","China","Zhang Yimou","yes","https://drive.google.com/open?id=1nnExLbgNi7m3GRGZJewUJK35S0ZVWMjJlw"],
+  ["Still Life","2006","China","Jia Zhangke","yes","https://drive.google.com/open?id=1OYpPXandUmRp4m1jiBPyr_R6lMstRqznhQ"],
+  ["A Touch of Sin","2013","China","Jia Zhangke","yes","https://drive.google.com/file/d/1pMfT6mpe3gTh9x3_uNUsMnUl4LrgMgL7zA/view"],
+  ["Black Coal Thin Ice","2014","China","Diao Yinan","yes","https://drive.google.com/file/d/1Dk3AwPilVxtqS7yW9Wt1bjIsVtXLZ3GHXw/view"],
+  ["Closely Watched Trains","1966","Czech","Jiří Menzel","yes","https://drive.google.com/file/d/1TOtzR38bdg3DvNujIgFitZDqDJdlnciFwQ/view"],
+  ["Marketa Lazarová","1967","Czech","František Vláčil","yes","https://drive.google.com/open?id=10DZpbfFTTBrK7mwnlo96Nb7rpNd2v9HWlQ"],
+  ["Diamonds of the Night","1964","Czech","Jan Němec","yes","https://drive.google.com/open?id=19fw2KdXqpAQjDvNPDsrPB9OxS_LeUVkOeg"],
+  ["Valerie and Her Week of Wonders","1970","Czech","Jaromil Jireš","yes","https://drive.google.com/open?id=1LBAnruW0IzZfSmuK9MoLHh2crMKrPdX4cA"],
+  ["The Shop on Main Street","1965","Czech","Ján Kadár & Elmar Klos","yes","https://drive.google.com/open?id=1yVIO8xmnAbZVmFDijiENadl1nhm3cv1nbA"],
+  ["Ordet","1955","Denmark","Carl Theodor Dreyer","yes","https://drive.google.com/open?id=1gQT41o-iTC8ir4UqBa3rwQYi444bgKXTmg"],
+  ["Gertrud","1964","Denmark","Carl Theodor Dreyer","yes","https://drive.google.com/open?id=1o3oJozL7bhUQmLZqv6VqGtxsRa_aBEDTgw"],
+  ["Babette's Feast","1987","Denmark","Gabriel Axel","yes","https://drive.google.com/open?id=1HOpkOvAwHymIMNKvtTROdvq5FxvRTulxpw"],
+  ["Dancer in the Dark","2000","Denmark","Lars von Trier","yes","https://drive.google.com/open?id=1O190ZTPe3bAQ2hFbnzEiU5be8ZzTsNDR_w"],
+  ["In a Better World","2010","Denmark","Susanne Bier","yes","https://drive.google.com/open?id=123gYW8cOS7em-q0XcqWtmpeUctgoAWKu2w"],
+  ["Pusher","1996","Denmark","Nicolas Winding Refn","yes","https://drive.google.com/open?id=15XuB0z_Rl4-vGZ7oJ34OchVlHxQGnu_tog"],
+  ["The 39 Steps","1935","England","Alfred Hitchcock","yes","https://drive.google.com/open?id=1fbqlWrBlBVmMyWhTTa-qXFmcCz5MqhBCEw"],
+  ["Rebecca","1940","England","Alfred Hitchcock","yes","https://drive.google.com/open?id=1Bxpfdod5pDcvnlvEyji_K318g2uu1PTrjg"],
+  ["The Third Man","1949","England","Carol Reed","yes","https://drive.google.com/open?id=1Yo53EMcKSMFVXRfkMhY9QfsO1YfLIr8OFw"],
+  ["Psycho","1960","England","Alfred Hitchcock","yes","https://drive.google.com/open?id=1WHKY_ZhKV4Yr0NHooLH-TzlwRhFL-jwU9A"],
+  ["The Birds","1963","England","Alfred Hitchcock","yes","https://drive.google.com/open?id=17YiOmpqoOatpcvZCwAT8h3kqmU3TNiPc"],
+  ["If","1968","England","Lindsay Anderson","yes","https://drive.google.com/open?id=1mgmH7glb1Bf28YIRL2kerBzQPVabv3qb_Q"],
+  ["Secrets & Lies","1996","England","Mike Leigh","yes","https://drive.google.com/open?id=1YMeTqbM78G2kl8GiO0X6HYpodC2UEtwl8A"],
+  ["Vera Drake","2004","England","Mike Leigh","yes","https://drive.google.com/open?id=1RnoCaLQcRryAYiiYIukRCjH6_L9_j-tw2A"],
+  ["The Wind That Shakes the Barley","2006","England","Ken Loach","yes","https://drive.google.com/open?id=1MDKq45TmGcBnJGz_-5uMFGPReB8fGukaww"],
+  ["I Daniel Blake","2016","England","Ken Loach","yes","https://drive.google.com/open?id=1_9zpN5HmziivPoXgEVECG1iKsN2kzRQTmA"],
+  ["The Mission","1986","England","Roland Joffé","yes","https://drive.google.com/open?id=1D8ubll_t-pU15QCpqBs7T9Yl_yrD3F82Ow"],
+  ["The 400 Blows","1959","France","François Truffaut","yes","https://drive.google.com/open?id=18BNLTiSwX47Xg3kUe47pgDcMSgXr1dpQBg"],
+  ["Breathless","1960","France","Jean-Luc Godard","yes","https://drive.google.com/open?id=1S4Z2iiPYTVqxU3zMRuRlwylFJfNu_bhGLQ"],
+  ["Jules and Jim","1962","France","François Truffaut","yes","https://drive.google.com/open?id=1v3VCrwFWcXJ5LqadkrO0AwPxMp5YqVh9Jw"],
+  ["Vivre Sa Vie","1962","France","Jean-Luc Godard","yes","https://drive.google.com/open?id=1B1gzPdNFryPgckRoJ4mgcGnr2-gpIGhYKw"],
+  ["Contempt","1963","France","Jean-Luc Godard","yes","https://drive.google.com/open?id=1UxMjU8ts86-MYo6RWfp8crCzG0xtG4NA-Q"],
+  ["Band of Outsiders","1964","France","Jean-Luc Godard","yes","https://drive.google.com/open?id=1j0OmaUfteFpkMnODbRU6lfAhwaLiGndsEQ"],
+  ["Pierrot le Fou","1965","France","Jean-Luc Godard","yes","https://drive.google.com/open?id=1Gvrt-Zr2HVEqxjT3q6A3HsSliYSUUOPs_Q"],
+  ["Weekend","1967","France","Jean-Luc Godard","yes","https://drive.google.com/open?id=1njbzdfD2j5hqbW2lzLGcJWXzsnb6xrBnJQ"],
+  ["Pickpocket","1959","France","Robert Bresson","yes","https://drive.google.com/open?id=148qsAylUekWfmAqwf5OWHbS9yptKsU0htQ"],
+  ["A Man Escaped","1956","France","Robert Bresson","yes","https://drive.google.com/open?id=1jLf8M6YpBO5zeeP1o83ZkiiAfRIedEWLNQ"],
+  ["Au Hasard Balthazar","1966","France","Robert Bresson","yes","https://drive.google.com/file/d/0B6bSHUx2TGPNaFd6WjcwLXhRdzA/view"],
+  ["Mouchette","1967","France","Robert Bresson","yes","https://drive.google.com/open?id=128R5ti3YjCQn19qaGyJd80_lu3bgH146ZA"],
+  ["L'argent","1983","France","Robert Bresson","yes","https://drive.google.com/open?id=1anOdxtUs0JgTdOlt8hDkIcFQ4N1unnkdJw"],
+  ["Cleo from 5 to 7","1962","France","Agnès Varda","yes","https://drive.google.com/open?id=1jiXmklg75hBv6AX0pkJ3aAf5kaQKDGbH5A"],
+  ["Le Bonheur","1965","France","Agnès Varda","yes","https://drive.google.com/open?id=1eEXxvF0J-o3OotzUO_SR3vJ2ujxf9xGrYA"],
+  ["Vagabond","1985","France","Agnès Varda","yes","https://drive.google.com/open?id=1MZ1crLRvch1aDXwo8n4a-urXi8AjBTILKg"],
+  ["The Gleaners & I","2000","France","Agnès Varda","yes","https://drive.google.com/open?id=1EQ5XVvzvLRFR_rZV1isYx74AMFg3ROpAAw"],
+  ["Faces Places","2017","France","Agnès Varda","yes","https://drive.google.com/open?id=1cZIFnmeSWMsd5rmdlrl8Te08vW0rkRfaRA"],
+  ["Le Samourai","1967","France","Jean-Pierre Melville","yes","https://drive.google.com/open?id=19Lh4u8Pp54__cVY8JpoKubplqmnVggdb3w"],
+  ["Army of Shadows","1969","France","Jean-Pierre Melville","yes","https://drive.google.com/open?id=1Ll3t94ulKzBJPkrQt4uQlqj60TCLZzQDQQ"],
+  ["Le Cercle Rouge","1970","France","Jean-Pierre Melville","yes","https://drive.google.com/open?id=1mewmCT8KftlXS4nlIE-0Jfc3XE86aCwK_w"],
+  ["My Night at Maud's","1969","France","Éric Rohmer","yes","https://drive.google.com/open?id=1aHUWADPIVvnQxEEqaEi5NW85T0w0QZS1-Q"],
+  ["The Green Ray","1986","France","Éric Rohmer","yes","https://drive.google.com/open?id=1EESoi8fnU3U2ukKoRQfd1ujL95lRNPDuSQ"],
+  ["Hiroshima Mon Amour","1959","France","Alain Resnais","yes","https://drive.google.com/open?id=1FCAzDRwcfyLrTkFFMHvBlO3mcFPcIMvY8w"],
+  ["Last Year at Marienbad","1961","France","Alain Resnais","yes","https://drive.google.com/open?id=1eAN-8ZXEY4cU9u8GwejzBQRMMm8G5NWpAQ"],
+  ["Night and Fog","1955","France","Alain Resnais","yes","https://drive.google.com/open?id=1zvTy93T2Kpi1AJU7NP0zp8X0EoE65juNwg"],
+  ["The Umbrellas of Cherbourg","1964","France","Jacques Demy","yes","https://drive.google.com/file/d/1NdwTamx5jpIryrq4zHlqhAMv_TQZ49NVpA/view"],
+  ["The Young Girls of Rochefort","1967","France","Jacques Demy","yes","https://drive.google.com/open?id=1B6Q63W7h5eoad41lpHr_Lr4alsURbL-xAg"],
+  ["Playtime","1967","France","Jacques Tati","yes","https://drive.google.com/open?id=1EQfT1wg1qucTbh1FHyEL_RhneMQcPi-0sw"],
+  ["La Belle Noiseuse","1991","France","Jacques Rivette","yes","https://drive.google.com/open?id=1Z8AlyL8Kb2WtYN6GaAMik5z7ku_I29JiSg"],
+  ["Blue Is the Warmest Color","2013","France","Abdellatif Kechiche","yes","https://drive.google.com/open?id=1_iNYthSxFXmGX2ggQKUDAuXhd6eBXO4ZkA"],
+  ["The Secret of the Grain","2007","France","Abdellatif Kechiche","yes","https://drive.google.com/open?id=1xd0_zh2NoKIbTGlNFcn22onCZ24IfahFcg"],
+  ["Dheepan","2015","France","Jacques Audiard","yes","https://drive.google.com/open?id=1cY5dqlPolyKEf2OZEc_mKECrmPyKE17WpA"],
+  ["Sans Soleil","1983","France","Chris Marker","yes","https://drive.google.com/open?id=12dHuebe-QnBYt3r2YdS6axr86wvjLHZTJQ"],
+  ["La Jetée","1962","France","Chris Marker","yes","https://drive.google.com/open?id=1trOXAjX_XyMUAXex3wGDj0VaAmngokm5cw"],
+  ["Au Revoir les Enfants","1987","France","Louis Malle","yes","https://drive.google.com/open?id=1VhpDEcvHfLuMh5z5dzKxkqDJ8cMyCSC7sA"],
+  ["Mauvais Sang","1986","France","Leos Carax","yes","https://drive.google.com/open?id=1G3jxoSdTgCr3WtBVnA3bLvLHzBuynYxMyw"],
+  ["Bastards","2013","France","Claire Denis","yes","https://drive.google.com/open?id=1CkZdfsuQOfMHywvA-KkV5TjYrUjIxD1nqQ"],
+  ["Aguirre The Wrath of God","1972","Germany","Werner Herzog","yes","https://drive.google.com/open?id=1Qw4IHRIDD5bBYTl_sBPJC-2mhIRDhQon6g"],
+  ["The Enigma of Kaspar Hauser","1974","Germany","Werner Herzog","yes","https://drive.google.com/open?id=1xBiwRcIDJcx6hHFEbqPvp_BaUVnN7Mytjg"],
+  ["Fitzcarraldo","1982","Germany","Werner Herzog","yes","https://drive.google.com/open?id=1wxH6p2-Oh5QXIhWw8r1YwpB5Rz6LmwD3kw"],
+  ["The Tin Drum","1979","Germany","Volker Schlöndorff","yes","https://drive.google.com/open?id=1WB-cZV9JXQ_kIJUEYwXCbGdvREd6tRNuVA"],
+  ["Alice in the Cities","1974","Germany","Wim Wenders","yes","https://drive.google.com/open?id=1Tu2KWRkgATzly7yA9pSTX3TrLyYB73Wc7A"],
+  ["Paris Texas","1984","Germany","Wim Wenders","yes","https://drive.google.com/open?id=12acnp_oUV_ttazwF8TRa0lPZbp-lotPkuw"],
+  ["Kings of the Road","1976","Germany","Wim Wenders","yes","https://drive.google.com/file/d/1LtgxsxAyaq0jc1ia2j_LRtrAb1HviXqMPA/view"],
+  ["The American Friend","1977","Germany","Wim Wenders","yes","https://drive.google.com/open?id=1oN7DNuXyVhyWTXTB3t3dxEvnp7csaJtBZw"],
+  ["Pina","2011","Germany","Wim Wenders","yes","https://drive.google.com/open?id=1DiqXAHwu48oTc_HPd2ohEnndUFsMTWMouQ"],
+  ["The Marriage of Maria Braun","1979","Germany","Rainer Werner Fassbinder","yes","https://drive.google.com/file/d/1KAAdWzEqeFmt-Q1FbN_sQ8gSpa_GD9DuTg/view"],
+  ["The Bitter Tears of Petra von Kant","1972","Germany","Rainer Werner Fassbinder","yes","https://drive.google.com/file/d/1WD0nDHsnY0nKVG1X_mP8jf1Jt9ZcLonrvw/view"],
+  ["Ali Fear Eats the Soul","1974","Germany","Rainer Werner Fassbinder","yes","https://drive.google.com/file/d/1dMdOCcYwLgnjO6cgOQ9CGRs643RFjlUrkQ/view"],
+  ["The Lives of Others","2006","Germany","Florian Henckel von Donnersmarck","yes","https://drive.google.com/open?id=19bmzbul23I7UdfPQoC8MTJjDSTB_N-yxdA"],
+  ["Marianne and Juliane","1981","Germany","Margarethe von Trotta","yes","https://drive.google.com/open?id=1kcTsX__ve9Rxt4BTWAURdEJKKkXD9wSMgA"],
+  ["Dogtooth","2009","Greece","Yorgos Lanthimos","yes","https://drive.google.com/open?id=1NX7Bnj4Gk2Bb3fKQv7l1M869_cmspyLpog"],
+  ["The Travelling Players","1975","Greece","Theo Angelopoulos","yes","https://drive.google.com/open?id=1-Tfr0EmV-v43DgNlGPgGOJmhKt2-QBQdmQ"],
+  ["Landscape in the Mist","1988","Greece","Theo Angelopoulos","yes","https://drive.google.com/open?id=1Zsa_5AlQqi6MNQRh0ia-FYu6mY1wwy7QXA"],
+  ["Eternity and a Day","1998","Greece","Theo Angelopoulos","yes","https://drive.google.com/open?id=1WUDzrDQR44cOJF2J2KW-0R6ciu-SuDd0xw"],
+  ["Ulysses Gaze","1995","Greece","Theo Angelopoulos","yes","https://drive.google.com/open?id=1KW58qJm9uKDlawkIBvlfaBK8RhNoie_ZBg"],
+  ["Pather Panchali","1955","India","Satyajit Ray","yes","https://drive.google.com/open?id=1sXTspryAAprQU-QkqrdL4LS1OBqLoBgO0A"],
+  ["Aparajito","1956","India","Satyajit Ray","yes","https://drive.google.com/open?id=1kjrPK31jN3196kTj-N_oU_SsAZj_7HBbqA"],
+  ["The World of Apu","1959","India","Satyajit Ray","yes","https://drive.google.com/open?id=1bz_SD7a8l9yvD5e3SxzAPSvSsiRmboSqBA"],
+  ["Charulata","1964","India","Satyajit Ray","yes","https://drive.google.com/open?id=1RShHabxSSkXYrciaiHVlfIHKfsDSmhCnng"],
+  ["Salaam Bombay!","1988","India","Mira Nair","yes","https://drive.google.com/open?id=1mps73GP5X_Cn2qu8uyzW2JLePT2P4vupnQ"],
+  ["Monsoon Wedding","2001","India","Mira Nair","yes","https://drive.google.com/open?id=1bVbDL_QGII6De6FJWTabCgS3wIBNdwqj3A"],
+  ["Close-Up","1990","Iran","Abbas Kiarostami","yes","https://drive.google.com/file/d/1bBuwpJ3YjfmpYFUvUNkIVOoiScJLw8KXiA/view"],
+  ["Where Is My Friend's House","1987","Iran","Abbas Kiarostami","yes","https://drive.google.com/open?id=1ESTa5-hAbEZSp5SQdPlcLHVxzjS9WAhwiw"],
+  ["Taste of Cherry","1997","Iran","Abbas Kiarostami","yes","https://drive.google.com/open?id=1Fkzdxm6bRvX4yTnuIpz9NBmHMQVrWPwP6g"],
+  ["The Wind Will Carry Us","1999","Iran","Abbas Kiarostami","yes","https://drive.google.com/file/d/1_Gok6SWwQvkbH0YWZlOmUrSJX7Q6Y-Cg5A/view"],
+  ["A Separation","2011","Iran","Asghar Farhadi","yes","https://drive.google.com/open?id=1IkD97q1iBPWWcZJ3OeoRW3pXlKwve811rA"],
+  ["About Elly","2009","Iran","Asghar Farhadi","yes","https://drive.google.com/open?id=1Ba6m8cKMaySbuMsBtOXS4adYFD2SNsWndg"],
+  ["Fireworks Wednesday","2006","Iran","Asghar Farhadi","yes","https://drive.google.com/open?id=1rgIhiebVKXnbv2k1bfQ1VL-FRx_sI5sqRg"],
+  ["A Moment of Innocence","1996","Iran","Mohsen Makhmalbaf","yes","https://drive.google.com/open?id=1WWXo5_07Ur7_U3w5nzJFMOBn5iHLMlSrkA"],
+  ["Gabbeh","1996","Iran","Mohsen Makhmalbaf","yes","https://drive.google.com/open?id=1pQYyOEvxfetBTn23XQUIOgylYyr5FSzgGw"],
+  ["The White Balloon","1995","Iran","Jafar Panahi","yes","https://drive.google.com/open?id=16ahd2fao783UI9jJ6R4Cs1FvwsBuq6MCQA"],
+  ["The Circle","2000","Iran","Jafar Panahi","yes","https://drive.google.com/open?id=1LNOqs-k3-o-wNYY47cg4FctLubfYEC3pKQ"],
+  ["Taxi","2015","Iran","Jafar Panahi","yes","https://drive.google.com/open?id=1ZydzaKW80Nm83NMemutbFGQvYmofSkPsKg"],
+  ["Bicycle Thieves","1948","Italy","Vittorio De Sica","yes","https://drive.google.com/open?id=1_7jJPpFzwkGGnHoQ4Wlt9LrTtcESR-qeSw"],
+  ["Umberto D","1952","Italy","Vittorio De Sica","yes","https://drive.google.com/open?id=1nciqiI892HIgaicHTWmxBkRp3vGS6m1YCQ"],
+  ["La Strada","1954","Italy","Federico Fellini","yes","https://drive.google.com/open?id=1ugEX6NPuWST9vZIB2vaS6v0elqhwlYfE7Q"],
+  ["La Dolce Vita","1960","Italy","Federico Fellini","yes","https://drive.google.com/open?id=1bcN3VZchJMaFOyfMA88cQ-ql-nbCzzOURw"],
+  ["8½","1963","Italy","Federico Fellini","yes","https://drive.google.com/open?id=13jU2WsTla00AYLnGYD24j0CxoSPR9Qna-A"],
+  ["Amarcord","1973","Italy","Federico Fellini","yes","https://drive.google.com/open?id=16HGwhxxvbqoTbdoxJXJusApo8c_QagwFFA"],
+  ["L'Avventura","1960","Italy","Michelangelo Antonioni","yes","https://drive.google.com/file/d/16iNVA1aTbhnbGHdNZn5bQArhChDTh4N6SA/view"],
+  ["La Notte","1961","Italy","Michelangelo Antonioni","yes","https://drive.google.com/open?id=1gt_df0L4yRUsc_pKNy-t7VSUTeeV9QsAPA"],
+  ["L'eclisse","1962","Italy","Michelangelo Antonioni","yes","https://drive.google.com/file/d/1jK__U0KZR8_mV641mH1tuy_7mjiwiq_TrQ/view"],
+  ["Red Desert","1964","Italy","Michelangelo Antonioni","yes","https://drive.google.com/open?id=1HKFYN8Pg7pP4Sbbo-pSJNtxey4MJGgjd-w"],
+  ["Blow-Up","1966","Italy","Michelangelo Antonioni","yes","https://drive.google.com/open?id=1p5YcYCyVLiA0u1gUYOO00tuCKFi4LLqBfA"],
+  ["The Leopard","1963","Italy","Luchino Visconti","yes","https://drive.google.com/open?id=1Q1Trniv1DElsRJgLAPS72GyciTKDCFhiQg"],
+  ["Rocco and His Brothers","1960","Italy","Luchino Visconti","yes","https://drive.google.com/open?id=1CYiYLglMVJiBux23h-rJFZM2p6gI8bOTRQ"],
+  ["The Leopard","1963","Italy","Luchino Visconti","yes","https://drive.google.com/open?id=1Q1Trniv1DElsRJgLAPS72GyciTKDCFhiQg"],
+  ["Rome Open City","1945","Italy","Roberto Rossellini","yes","https://drive.google.com/open?id=1-2Hq-nwvmL8dvwHN72xVQtvyQLmiPOwKHw"],
+  ["Cinema Paradiso","1988","Italy","Giuseppe Tornatore","yes","https://drive.google.com/open?id=1zF4sF2LXh4egicfog7sOFpvSI6ZO7ymT-g"],
+  ["Life Is Beautiful","1997","Italy","Roberto Benigni","yes","https://drive.google.com/open?id=1tFnvkZ-ISWW8bwcucT1Ahtm4IQRdNo8tIw"],
+  ["The Great Beauty","2013","Italy","Paolo Sorrentino","yes","https://drive.google.com/open?id=11iOQ_URb6urOk4Fb2Xl851hTUSUAqEAtfg"],
+  ["Investigation of a Citizen Above Suspicion","1970","Italy","Elio Petri","yes","https://drive.google.com/open?id=18c6lMdlXu7MwFIWGoMLdsPJS4jbF1v3IJg"],
+  ["Fire at Sea","2016","Italy","Gianfranco Rosi","yes","https://drive.google.com/open?id=1L1_am3ttfCXhReuLHQ25NRNhwKBzT-abng"],
+  ["Rashomon","1950","Japan","Akira Kurosawa","yes","https://drive.google.com/open?id=1hQ3-V94fZKL0buI-tFm7g57Qu-DG9Q-GaA"],
+  ["Ikiru","1952","Japan","Akira Kurosawa","yes","https://drive.google.com/file/d/19QF88ZhHrghcbQv2Oqgib_8aALFR3QJURw/view"],
+  ["Tokyo Story","1953","Japan","Yasujirō Ozu","yes","https://drive.google.com/file/d/11uwoQ8GEIhOu1kTTWwmuS_CDUxl5g8Sp3w/view"],
+  ["Sansho the Bailiff","1954","Japan","Kenji Mizoguchi","yes","https://drive.google.com/open?id=1X4EVTLn1BpQoDh2b69YGYwLFn5pxOLRZsw"],
+  ["Ugetsu","1953","Japan","Kenji Mizoguchi","yes","https://drive.google.com/file/d/1xst9dIcB8B2bBcxYL8t2cbBX3vd1Ymos3Q/view"],
+  ["Yojimbo","1961","Japan","Akira Kurosawa","yes","https://drive.google.com/open?id=1EO1oTiqvuWZTfxUdlT4oQzDVGYVdpHoieg"],
+  ["High and Low","1963","Japan","Akira Kurosawa","yes","https://drive.google.com/open?id=1lte3v_V1lAcrfSvqltvAVnjSZah15L_SoA"],
+  ["Woman in the Dunes","1964","Japan","Hiroshi Teshigahara","yes","https://drive.google.com/open?id=1okyyKegAltQEtM8oUU4YWGcHIQVFhI8B_w"],
+  ["Red Beard","1965","Japan","Akira Kurosawa","yes","https://drive.google.com/open?id=1tOTdMJBjVirXNDNSZVA4xQjBxr4OGCUmVw"],
+  ["Ran","1985","Japan","Akira Kurosawa","yes","https://drive.google.com/file/d/1WkATd0whFQSE98738jJRYt-dE8c1cJl7Fw/view"],
+  ["Tampopo","1985","Japan","Juzo Itami","yes","https://drive.google.com/open?id=17R-90z20hoc7tq1Iexpg861Fcez_RZZj5g"],
+  ["Grave of the Fireflies","1988","Japan","Isao Takahata","yes","https://drive.google.com/open?id=1XrNwlxGiZzfICrIZEfOerMJdzakF80eWNw"],
+  ["My Neighbor Totoro","1988","Japan","Hayao Miyazaki","yes","https://drive.google.com/open?id=17mmoXF_R9IOeYfbHIts88OOLfMgfGupjWg"],
+  ["Kiki's Delivery Service","1989","Japan","Hayao Miyazaki","yes","https://drive.google.com/open?id=10ANm2WViktoJ-yaHWQD1Sc8qYsl-9q5DgQ"],
+  ["Princess Mononoke","1997","Japan","Hayao Miyazaki","yes","https://drive.google.com/open?id=1HpQ6FvwXaz3x41veSGTEHMg1LTxVV9rUFA"],
+  ["Perfect Blue","1997","Japan","Satoshi Kon","yes","https://drive.google.com/open?id=14W6bvLHDnYg4xMf5l6TFlNvt9D4hPFY69w"],
+  ["Spirited Away","2001","Japan","Hayao Miyazaki","yes","https://drive.google.com/open?id=1iHtbWOBJWi9ILCnwrsuAWoOiKT9DqVWINA"],
+  ["After Life","1998","Japan","Hirokazu Koreeda","yes","https://drive.google.com/file/d/1Vxr_Hz_fcL8WwNu79xvzo7gCWg0jw_tpyQ/view"],
+  ["Nobody Knows","2004","Japan","Hirokazu Koreeda","yes","https://drive.google.com/file/d/1cjIaB8ZXd2KJTz7JzpI_C-bALDtaZF0EUg/view"],
+  ["Still Walking","2008","Japan","Hirokazu Koreeda","yes","https://drive.google.com/open?id=151yJdBtWK_RSMuZtAYU9lQvJg7DK8ZuyEw"],
+  ["Like Father Like Son","2013","Japan","Hirokazu Koreeda","yes","https://drive.google.com/open?id=1WozbcQtF_gqn9-VIVIIgtTWBjxFEqjR6DA"],
+  ["Cure","1997","Japan","Kiyoshi Kurosawa","yes","https://drive.google.com/open?id=1oMCSB5AfpVxwT1kw4M4INqQNoDPuVOaxZA"],
+  ["Tokyo Sonata","2008","Japan","Kiyoshi Kurosawa","yes","https://drive.google.com/open?id=1Ny2mItpwTi-4dZ5Mo7zH8h6AqBcPrPZhSQ"],
+  ["Sonatine","1993","Japan","Takeshi Kitano","yes","https://drive.google.com/open?id=15FjoGQpFGUV34Y9oGUpP_GHiFHL2jzMqkg"],
+  ["Fireworks","1997","Japan","Takeshi Kitano","yes","https://drive.google.com/open?id=1cd_K_bS7XvZhw-pTMEPcipBMInRenPKkHw"],
+  ["Departures","2008","Japan","Yojiro Takita","yes","https://drive.google.com/open?id=1-xmJLzYEzMidwLPWGUefjs-z_oDgMcEqSg"],
+  ["An Autumn Afternoon","1962","Japan","Yasujirō Ozu","yes","https://drive.google.com/file/d/1-TSsPCLVsMT4MRBSfcfkitSxtbEzGwkmBg/view"],
+  ["Satantango","1994","Hungary","Béla Tarr","yes","https://drive.google.com/open?id=1PXmu5KmrYFpaoAFaG4dujzYkM8rxIgd7FA"],
+  ["Werckmeister Harmonies","2000","Hungary","Béla Tarr","yes","https://drive.google.com/file/d/1AJ3z1_jPWiNX8CmieQ8y-VLgjRcYu5YRkA/view"],
+  ["The Turin Horse","2011","Hungary","Béla Tarr","yes","https://drive.google.com/open?id=1xHS-bjG-TWVBBMPMxjmmrv9tFLnoQNoVgQ"],
+  ["Damnation","1988","Hungary","Béla Tarr","yes","https://drive.google.com/file/d/15gfp4PFgBirWLjH-463diKF6Pd5o_KKBGw/view"],
+  ["Son of Saul","2015","Hungary","László Nemes","yes","https://drive.google.com/open?id=1eUvKTHOLk3rLwqBFCzxmzbno_pYWWqommw"],
+  ["The Decalogue","1989","Poland","Krzysztof Kieślowski","yes","https://drive.google.com/open?id=1eaLVJba97elh0Icd_k4VwT7BGsLSYP6vkA"],
+  ["The Double Life of Veronique","1991","Poland","Krzysztof Kieślowski","yes","https://drive.google.com/open?id=1YO2GrBz2bh17beV99_jFpK9DEf6ojCb3dQ"],
+  ["Three Colors Blue","1993","Poland","Krzysztof Kieślowski","yes","https://drive.google.com/open?id=1qeePNO7Nr6SqtSUTq7HxuVVRavtuNtXHBQ"],
+  ["Three Colors Red","1994","Poland","Krzysztof Kieślowski","yes","https://drive.google.com/open?id=1EdE-KJQ0zkWTrNfKeRuK-Di36C-rtIZHcQ"],
+  ["Three Colors White","1994","Poland","Krzysztof Kieślowski","yes","https://drive.google.com/open?id=1CKJeVyikPLK9ga_HkanmJyFJvN2F_Xq0yw"],
+  ["Ida","2013","Poland","Paweł Pawlikowski","yes","https://drive.google.com/open?id=1wQXxwp1R83h1vXxvW1Ac7GeasWEZAWs-kA"],
+  ["Man of Iron","1981","Poland","Andrzej Wajda","yes","https://drive.google.com/open?id=1FImxkb11L_ebU4-6ToTihMNLhnsYZitVzQ"],
+  ["Stalker","1979","Russia","Andrei Tarkovsky","yes","https://drive.google.com/open?id=1h455PS_95OwihYte5Qi7kFSzylvNp_EiAA"],
+  ["Andrei Rublev","1966","Russia","Andrei Tarkovsky","yes","https://drive.google.com/open?id=1oHU32qMST7GK-R0SkMJ1ZVEknIeE4pDWGw"],
+  ["Mirror","1975","Russia","Andrei Tarkovsky","yes","https://drive.google.com/open?id=1cgjlqPfamEAp59DyH_wnUNxtJHF1R7cR"],
+  ["Solaris","1972","Russia","Andrei Tarkovsky","yes","https://drive.google.com/open?id=1pRtYc5xj8p476PVXy8y_BCrXwGYePtjetw"],
+  ["Nostalgia","1983","Russia","Andrei Tarkovsky","yes","https://drive.google.com/open?id=1m-FrShVc0dN_1trdRy8qFh5xOH9lQBmeRA"],
+  ["The Sacrifice","1986","Russia","Andrei Tarkovsky","yes","https://drive.google.com/open?id=1JD61MPjJlZSn8DsdAByN-P40VhbTkuS-WQ"],
+  ["Come and See","1985","Russia","Elem Klimov","yes","https://drive.google.com/open?id=1XT1QdasNOkV7dzmuW-PvCHoGCh9XaidQsA"],
+  ["Burnt By the Sun","1994","Russia","Nikita Mikhalkov","yes","https://drive.google.com/open?id=12nlqvBEOoELkokdw0hDvIrAZw9TVFy-59A"],
+  ["The Return","2003","Russia","Andrey Zvyagintsev","yes","https://drive.google.com/open?id=1_czy2fdSaWI-6DQlXzWtIbWWfLONkXJaRg"],
+  ["Battleship Potemkin","1925","Russia","Sergei M. Eisenstein","yes","https://drive.google.com/open?id=1W49hy8etOkvRgUQ2K1Ro-MaRZY7qM23fvA"],
+  ["Russian Ark","2002","Russia","Alexander Sokurov","yes","https://drive.google.com/open?id=1lUVFZx98POZZCn1Ye66vbB-ZGWa9MvBvDg"],
+  ["The Seventh Seal","1957","Sweden","Ingmar Bergman","yes","https://drive.google.com/file/d/1_wQGp4E35qZOEsyBem209624DZwWhOhG0A/view"],
+  ["Wild Strawberries","1957","Sweden","Ingmar Bergman","yes","https://drive.google.com/file/d/1rotfF982jnJuLTjGWMcfFEY70kpWvFfQIg/view"],
+  ["Persona","1966","Sweden","Ingmar Bergman","yes","https://drive.google.com/file/d/1yprHWbhMtEDUqJq-zuH8iBjjBc_iCUsn8w/view"],
+  ["Scenes from a Marriage","1973","Sweden","Ingmar Bergman","yes","https://drive.google.com/open?id=13SUFQP5QMf162bchDJ4E5JUbdtGp-xc58w"],
+  ["Autumn Sonata","1978","Sweden","Ingmar Bergman","yes","https://drive.google.com/file/d/1AOye9kI-Z-oz-3qXJa-9gh-Fdne6RrSxkQ/view"],
+  ["Fanny & Alexander","1982","Sweden","Ingmar Bergman","yes","https://drive.google.com/file/d/1132Ur7PhCp9VzFX8wdymfB4GZ4nh-pPt0Q/view"],
+  ["The Square","2017","Sweden","Ruben Östlund","yes","https://drive.google.com/open?id=1SlnX6Qp4N4mjf0Qx6j6wBCGDCMu4dQuAuA"],
+  ["A Pigeon Sat on a Branch","2014","Sweden","Roy Andersson","yes","https://drive.google.com/open?id=1IAq7t72r3z6BOG_zcdqBhRK8PuL415fARA"],
+  ["Songs From the Second Floor","2000","Sweden","Roy Andersson","yes","https://drive.google.com/open?id=12UQbN_6AeSOX1Z6TabA8LL2iNLLkVaIQsA"],
+  ["Crouching Tiger Hidden Dragon","2000","Taiwan","Ang Lee","yes","https://drive.google.com/open?id=1KQvJQei24grQYXfnCIyf1pUWXzpjjMKzDg"],
+  ["Yi Yi","2000","Taiwan","Edward Yang","yes","https://drive.google.com/file/d/1yDS8b61prTfgrtQ05TFy4IalQISuH8u4lw/view"],
+  ["A Brighter Summer Day","1991","Taiwan","Edward Yang","yes","https://drive.google.com/open?id=1U8vSyhFIcBTIajWYsWXll-QGMexgM6yYXQ"],
+  ["Taipei Story","1985","Taiwan","Edward Yang","yes","https://drive.google.com/open?id=1FMBZuMPtbtpL58GXyvQJ7gBTRX_TeyDX7A"],
+  ["A City of Sadness","1989","Taiwan","Hou Hsiao-hsien","yes","https://drive.google.com/open?id=1SkIAfX8n0rP67OPnPnjAc8gqTLlqvN1NBw"],
+  ["Flowers of Shanghai","1998","Taiwan","Hou Hsiao-hsien","yes","https://drive.google.com/open?id=1SdV40pQjxtzTDobi89TYI7Vs80dI1r8MOw"],
+  ["Millennium Mambo","2001","Taiwan","Hou Hsiao-hsien","yes","https://drive.google.com/open?id=1GSMwSJWOghBRncVw-FKQNqGd-yohe6h6jw"],
+  ["What Time Is It There","2001","Taiwan","Tsai Ming-Liang","yes","https://drive.google.com/open?id=1x4J-VGdROtL_FxiurPIrC7H3IQVfOIHisA"],
+  ["Uncle Boonmee","2010","Thailand","Apichatpong Weerasethakul","yes","https://drive.google.com/open?id=1CLC_mSz5aBQHqmW5WLaZJv_tMeDKxqp97g"],
+  ["Tropical Malady","2004","Thailand","Apichatpong Weerasethakul","yes","https://drive.google.com/file/d/0B3v4wACAzT7NN3hENjFGLUtsenM/view"],
+  ["Cemetery of Splendour","2015","Thailand","Apichatpong Weerasethakul","yes","https://drive.google.com/open?id=1gH_5xwK7n_gMcOQefA4e0TrNKTD_0_VJ-A"],
+  ["Winter Sleep","2014","Turkey","Nuri Bilge Ceylan","yes","https://drive.google.com/open?id=1B0vTU2oLJnyQbO1-Jlj_GnfO-MAW8YU70Q"],
+  ["Once Upon a Time in Anatolia","2011","Turkey","Nuri Bilge Ceylan","yes","https://drive.google.com/open?id=1BOFBAWdNgWKqLplL4uIzTumCLVxfAoe-LA"],
+  ["Distant","2002","Turkey","Nuri Bilge Ceylan","yes","https://drive.google.com/open?id=0BxZg3w8KvaXnZ3pDR01RbDVKVjQ"],
+  ["Three Monkeys","2008","Turkey","Nuri Bilge Ceylan","yes","https://drive.google.com/open?id=19w5VZL6-AoYpBxs7Q9y7GKzwsgPQhMPkUA"],
+  ["Head-On","2004","Turkey","Fatih Akin","yes","https://drive.google.com/open?id=1Ct0mX_9CfXK9efWn_ef_KComePw3WaXZiA"],
+  ["4 Months 3 Weeks and 2 Days","2007","Romania","Cristian Mungiu","yes","https://drive.google.com/open?id=1C7ZUwWQPP8tRI5YvEgyCsj2-kQ8P59PQjQ"],
+  ["The Death of Mr. Lazarescu","2005","Romania","Cristi Puiu","yes","https://drive.google.com/open?id=1e1aruAEPZYLdK6OQybnddeqLZ7A7MRZSCA"],
+  ["Child's Pose","2013","Romania","Călin Peter Netzer","yes","https://drive.google.com/open?id=1D3K7RjIffxYoeDPlLCBhXcIKUmn02T_Pag"],
+  ["No Man's Land","2001","Bosnia","Danis Tanović","yes","https://drive.google.com/open?id=19qaQ2_XiRcvsPDWvL22ieg9VqO4vI2Dv_g"],
+  ["Before the Rain","1994","Macedonia","Milčo Mančevski","yes","https://drive.google.com/open?id=11wpnMGFnGPNQrojYZudB5qX4anWp38RYcQ"],
+  ["Secret Sunshine","2007","Korea","Lee Chang-dong","yes","https://drive.google.com/open?id=1OSVeflKxBgVO1ofFI5NfTTo74jefmkp32w"],
+  ["Peppermint Candy","1999","Korea","Lee Chang-dong","yes","https://drive.google.com/open?id=1xcswzuQ8DaFq-Ei_sIOofxWkANRkEVGlzQ"],
+  ["The Housemaid","1960","Korea","Kim Ki-young","yes","https://drive.google.com/open?id=1RkMZoK93B0ZI8GQZktp8CYIHPTnyoAIfIA"],
+  ["Black Girl","1966","Senegal","Ousmane Sembene","yes","https://drive.google.com/open?id=1u1O4tMpapOUn62-_UociXOCcvWeLIpY8RQ"],
+  ["Touki Bouki","1973","Senegal","Djibril Diop Mambéty","yes","https://drive.google.com/open?id=192zRJ9nZUpsMiE6hULiUMdlo8kynsWJbGQ"],
+  ["Moolaadé","2004","Senegal","Ousmane Sembene","yes","https://drive.google.com/open?id=1AsbVYDwSRtO_ZHCRi3G3qKZBrRT-doM09w"],
+  ["Mysteries of Lisbon","2010","Chile","Raúl Ruiz","yes","https://drive.google.com/open?id=1dsGvTC7ZLAULqNKLe7vN2QOmVaGKZmUV4w"],
+  ["A Fantastic Woman","2017","Chile","Sebastián Lelio","yes","https://drive.google.com/open?id=1np69V7WXZPs7grtblDS4gSD_mRXfoeKOrQ"],
+  ["Colossal Youth","2006","Portugal","Pedro Costa","yes","https://drive.google.com/file/d/1HnAxPwhAu5NV2KYkHK7i4-QyNO2cA7Hbgg/view"],
+  ["Tabu","2012","Portugal","Miguel Gomes","yes","https://drive.google.com/file/d/1s36ZDsyOa59Tsrvxkh3b4FMuHJTa5K0S/view"],
+  ["Horse Money","2014","Portugal","Pedro Costa","yes","https://drive.google.com/file/d/1nOuRmmNu3zJeoFgKCl2crVTJv6YkBf59/view"],
+  ["All About My Mother","1999","Spain","Pedro Almodóvar","yes","https://drive.google.com/open?id=1QYqM0HptWhvyaXxEXPLtmpKIaImypFTAfA"],
+  ["Viridiana","1961","Spain","Luis Buñuel","yes","https://drive.google.com/open?id=1gevZxzcexZ1tMDZtS1cNU0HAHhDydNTAEQ"],
+  ["The Discreet Charm of the Bourgeoisie","1972","Spain","Luis Buñuel","yes","https://drive.google.com/open?id=1pVOQL-va3e9G9oQpVdmIDge1DQv8Xb24Pg"],
+  ["Belle de Jour","1967","Spain","Luis Buñuel","yes","https://drive.google.com/open?id=1drIt7cjaVsbAxv8_kwcqS9vXZNYkYtZ8XQ"],
+  ["The Sea Inside","2004","Spain","Alejandro Amenábar","yes","https://drive.google.com/open?id=1pKbkk5PbcJOGF56AhQEHuGG54xrK6KN3nw"],
+  ["Underground","1995","Serbia","Emir Kusturica","yes","https://drive.google.com/open?id=1Zxd8A0i9Q2fCU-RYsNqifLZZdQ56ZKonKg"],
+  ["When Father Was Away on Business","1985","Serbia","Emir Kusturica","yes","https://drive.google.com/open?id=1dvfXlMuKhGtyQ6VB_oZo_XEIoWOqk7HTjQ"],
+  ["In the Name of the Father","1993","Ireland","Jim Sheridan","yes","https://drive.google.com/open?id=1McvzOWycmkMo93TdzwjGfVQpL8qFKNrnxg"],
+  ["Ratcatcher","1999","Scotland","Lynne Ramsay","yes","https://drive.google.com/open?id=1XsYwiIzRKxFxL54l9AM1As08uRmXoDSd-w"],
+  ["The Magdalene Sisters","2002","Scotland","Peter Mullan","yes","https://drive.google.com/open?id=1fYKHFzTktJA8VvnOWyFetSQBTzUGx12jQg"],
+  ["Oslo August 31","2011","Norway","Joachim Trier","yes","https://drive.google.com/file/d/1OfGUJGP7xILOiC8DBAcqjjlf8vyGiKmYbw/view"],
+  ["Reprise","2006","Norway","Joachim Trier","yes","https://drive.google.com/file/d/1ICAOU9aL35IswVfwp4s15s4snM7j_W_tAw/view"],
+  ["Tsotsi","2005","South Africa","Gavin Hood","yes","https://drive.google.com/open?id=1hF-K6jwWxiFi7efgSUv9UQtf6kZ8foFbPA"],
+  ["The Milk of Sorrow","2009","Peru","Claudia Llosa","yes","https://drive.google.com/open?id=1M3WrRjA1w3bnnpGCovXGQ9l9QUFSLMXUEg"],
+  ["Norte the End of History","2013","Philippines","Lav Diaz","yes","https://drive.google.com/file/d/1pOVKpzagiCmV2rPFCrwuSWykP_Ki5OTxPw/view"],
+  ["The Woman Who Left","2017","Philippines","Lav Diaz","yes","https://drive.google.com/open?id=1ae6Jioyeix4qoY3kZ2Ua7aYy967-t6lEQw"],
+  ["Waiting for Happiness","2002","Mauritania","Abderrahmane Sissako","yes","https://drive.google.com/open?id=1pnjyJIMjxvOdTo3h2HL1ttpC-cTRXGcN0w"],
+  ["Journey of Hope","1990","Switzerland","Xavier Koller","yes","https://drive.google.com/open?id=1ypxPCtWgjyC7S5CAUgewEtTYxvxvAqdORQ"],
+  ["25 Watts","2001","Uruguay","Juan Pablo Rebella & Pablo Stoll","yes","https://drive.google.com/file/d/1XDDXfnvk-W283G5gbnwr8ax8tJaLF5lTdQ/view"],
+  ["Whisky","2004","Uruguay","Juan Pablo Rebella & Pablo Stoll","yes","https://drive.google.com/file/d/1XK-drBUJMzztRN3oettZEK8p8LN-d1qTfw/view"],
+  ["From Afar","2015","Venezuela","Lorenzo Vigas","yes","https://drive.google.com/open?id=1OWZXnNqBZxvBYWQ90lyRo24dtpaOa-4Iog"],
+  ["Cyclo","1995","Vietnam","Tran Anh Hung","yes","https://drive.google.com/open?id=1Jh0dD5nvT0v42wG8z-wYFjm41djI_TUlTQ"],
+  ["The House is Black","1963","Iran","Forugh Farrokhzad","yes","https://drive.google.com/open?id=1-esWNAE_uWwmU6RfTN8QmuF0a779X7yYVQ"],
+  ["Calamari Union","1985","Finland","Aki Kaurismäki","yes","https://drive.google.com/open?id=1EHGiS8SghkAbVTQLYTWdYe2NkFQb6CfNCA"],
+  ["Ariel","1988","Finland","Aki Kaurismäki","yes","https://drive.google.com/file/d/1-jVe_1wx-w-OiFEAh-SiZ98CviuQZaHvdA/view"],
+  ["Le Havre","2011","Finland","Aki Kaurismäki","yes","https://drive.google.com/open?id=1fEujND2Kiuj0Lkj_WZ9H4oK8b00MuNryuQ"]
+];
+
+const movies = MOVIES.map(m => ({title:m[0],year:parseInt(m[1]),country:m[2],director:m[3],subs:m[4],link:m[5]}));
+
+const countries = [...new Set(movies.map(m=>m.country))].sort();
+const decades = [...new Set(movies.map(m=>Math.floor(m.year/10)*10))].sort();
+
+document.getElementById('total-count').textContent = movies.length + ' films';
+
+const cf = document.getElementById('country-filter');
+const df = document.getElementById('decade-filter');
+countries.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;cf.appendChild(o);});
+decades.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d+'s';df.appendChild(o);});
+
+function filter(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const country=cf.value, decade=df.value?parseInt(df.value):null, sub=document.getElementById('sub-filter').value;
+  return movies.filter(m=>{
+    if(q&&!m.title.toLowerCase().includes(q)&&!m.director.toLowerCase().includes(q))return false;
+    if(country&&m.country!==country)return false;
+    if(decade&&Math.floor(m.year/10)*10!==decade)return false;
+    if(sub==='yes'&&m.subs!=='yes')return false;
+    if(sub==='no'&&m.subs!=='no')return false;
+    return true;
+  });
+}
+
+function render(){
+  const results=filter();
+  document.getElementById('stats').textContent = results.length + ' film' + (results.length!==1?'s':'') + ' shown';
+  const grid=document.getElementById('grid');
+  if(!results.length){
+    grid.innerHTML='<div class="empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>No films match your filters.</div>';
+    return;
+  }
+  grid.innerHTML = results.map(m=>`
+    <div class="card" tabindex="0" role="button" data-title="${m.title.replace(/"/g,'&quot;')}" data-year="${m.year}" data-country="${m.country}" data-dir="${m.director.replace(/"/g,'&quot;')}" data-subs="${m.subs}" data-link="${m.link}">
+      <div class="card-title">${m.title}</div>
+      <div class="card-dir">${m.director}</div>
+      <div class="tags">
+        <span class="tag year">${m.year}</span>
+        <span class="tag">${m.country}</span>
+        ${m.subs==='yes'?'<span class="tag sub">subtitles</span>':''}
+      </div>
+    </div>`).join('');
+
+  grid.querySelectorAll('.card').forEach(card=>{
+    const open=()=>{
+      document.getElementById('m-title').textContent=card.dataset.title;
+      document.getElementById('m-meta').textContent='';
+      document.getElementById('m-country').textContent=card.dataset.country;
+      document.getElementById('m-year').textContent=card.dataset.year;
+      document.getElementById('m-dir').textContent=card.dataset.dir;
+      document.getElementById('m-subs').textContent=card.dataset.subs==='yes'?'Available':'Not available';
+      document.getElementById('m-link').href=card.dataset.link;
+      document.getElementById('overlay').classList.add('open');
+    };
+    card.addEventListener('click',open);
+    card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});
+  });
+}
+
+document.getElementById('close-modal').addEventListener('click',()=>document.getElementById('overlay').classList.remove('open'));
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))document.getElementById('overlay').classList.remove('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('overlay').classList.remove('open');});
+
+document.getElementById('search').addEventListener('input',render);
+cf.addEventListener('change',render);
+df.addEventListener('change',render);
+document.getElementById('sub-filter').addEventListener('change',render);
+document.getElementById('lucky').addEventListener('click',()=>{
+  const r=filter();
+  if(!r.length)return;
+  const m=r[Math.floor(Math.random()*r.length)];
+  document.getElementById('m-title').textContent=m.title;
+  document.getElementById('m-country').textContent=m.country;
+  document.getElementById('m-year').textContent=m.year;
+  document.getElementById('m-dir').textContent=m.director;
+  document.getElementById('m-subs').textContent=m.subs==='yes'?'Available':'Not available';
+  document.getElementById('m-link').href=m.link;
+  document.getElementById('overlay').classList.add('open');
+});
+
+render();
+</script>
+</body>
+</html>
