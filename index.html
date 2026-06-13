@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cinema Collection</title>
+<title>Harsha's Cinematheque</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -134,12 +134,30 @@
   }
 
 }
+.stats-banner{
+    display:flex;
+    gap:24px;
+    padding:0 2rem 1.5rem 2rem;
+    color:var(--muted);
+    font-size:.9rem;
+    flex-wrap:wrap;
+}
+
+.stats-banner span{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:8px 14px;
+}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>&#127916; Cinema Collection</h1>
+ <div>
+    <h1>🎬 Harsha's Cinematheque</h1>
+    <span>World Cinema • Classics • Discover</span>
+</div>
   <span id="total-count"></span>
 </header>
 
@@ -151,6 +169,34 @@
     <button id="hero-watch" class="hero-btn">▶ Begin Screening</button>
   </div>
 </section>
+
+ <section class="hero">
+    <div class="hero-content">
+
+        <div class="hero-label">
+            TONIGHT'S SELECTION
+        </div>
+
+        <h2 id="hero-title">
+            Loading...
+        </h2>
+
+        <p id="hero-meta">
+            World Cinema • Classics • Discover
+        </p>
+
+        <button id="hero-watch" class="hero-btn">
+            ▶ Begin Screening
+        </button>
+
+    </div>
+</section>
+
+<div class="stats-banner">
+    <span id="film-count"></span>
+    <span id="country-count"></span>
+    <span id="director-count"></span>
+</div>
  
 <div class="controls">
   <input type="text" id="search" placeholder="Search title or director…" autocomplete="off" />
@@ -588,6 +634,41 @@ document.getElementById('lucky').addEventListener('click',()=>{
 });
 
 render();
+ // ---------- Hero Banner ----------
+
+const featuredMovie =
+    MOVIES[Math.floor(Math.random() * MOVIES.length)];
+
+document.getElementById("hero-title").textContent =
+    featuredMovie[0];
+
+document.getElementById("hero-meta").textContent =
+    `${featuredMovie[3]} • ${featuredMovie[2]} • ${featuredMovie[1]}`;
+
+document.getElementById("hero-watch").addEventListener("click", () => {
+    window.open(featuredMovie[5], "_blank");
+});
+
+// ---------- Statistics ----------
+
+const filmCount = MOVIES.length;
+
+const countryCount = new Set(
+    MOVIES.map(movie => movie[2])
+).size;
+
+const directorCount = new Set(
+    MOVIES.map(movie => movie[3])
+).size;
+
+document.getElementById("film-count").textContent =
+    `🎬 ${filmCount} Films`;
+
+document.getElementById("country-count").textContent =
+    `🌍 ${countryCount} Countries`;
+
+document.getElementById("director-count").textContent =
+    `🎥 ${directorCount} Directors`;
 </script>
 </body>
 </html>
